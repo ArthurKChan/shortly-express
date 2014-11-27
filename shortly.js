@@ -3,6 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var bcrypt = require('bcrypt-nodejs');
+var session = require('express-session');
 
 
 var db = require('./app/config');
@@ -23,25 +24,30 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+app.use(session({
+  secret: 'never gonna give you up',
+  resave: false,
+  saveUninitialized: true
+}));
 
-app.get('/',
+app.get('/', util.checkLoggedIn,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create',
+app.get('/create', util.checkLoggedIn,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links',
+app.get('/links', util.checkLoggedIn,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
 });
 
-app.post('/links',
+app.post('/links', util.checkLoggedIn,
 function(req, res) {
   var uri = req.body.url;
   if (!util.isValidUrl(uri)) {
@@ -80,6 +86,7 @@ function(req, res) {
 
 app.get('/login',
 function(req, res) {
+  if(util.isLoggedIn(req)){ res.redirect(303, '/');}
   res.render('login');
 });
 
@@ -92,18 +99,23 @@ function(req, res) {
     .then(function(users) {
       var user = users[0];
       if (user) {
-        // console.log("user", user, "pass", password);
         if (bcrypt.compareSync(password, user.password)) {
-          // success
-          // console.log("logged in");
-          res.redirect('/');
+          util.createSession(req, user.username, function() {
+            res.redirect('/');
+          });
         } else {
-          res.send(401, "invalid password");
+          res.redirect(303, '/login');
         }
       } else {
         res.redirect(303, '/login');
       }
     });
+});
+
+app.get('/logout',
+function(req, res) {
+  req.session.destroy();
+  res.redirect(303, '/login');
 });
 
 app.get('/signup',
