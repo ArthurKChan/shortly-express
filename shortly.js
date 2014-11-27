@@ -2,6 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var bcrypt = require('bcrypt-nodejs');
 
 
 var db = require('./app/config');
@@ -77,7 +78,63 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/login',
+function(req, res) {
+  res.render('login');
+});
 
+app.post('/login',
+function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+  db.knex('users')
+    .where('username', '=', username)
+    .then(function(users) {
+      var user = users[0];
+      if (user) {
+        // console.log("user", user, "pass", password);
+        if (bcrypt.compareSync(password, user.password)) {
+          // success
+          // console.log("logged in");
+          res.redirect('/');
+        } else {
+          res.send(401, "invalid password");
+        }
+      } else {
+        res.redirect(303, '/login');
+      }
+    });
+});
+
+app.get('/signup',
+function(req, res) {
+  res.render('signup');
+});
+
+app.post('/signup',
+function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  new User({ username: username }).fetch().then(function(found) {
+    if (found) {
+      res.send(409, found.attributes.username + ' already exists');
+    } else {
+      // var password = bcrypt.hashSync(password);
+      var user = new User({
+        username: username,
+        password: password
+      });
+
+      user.save().then(function(newUser) {
+        Users.add(newUser);
+        // redirect to '/'
+        res.redirect('/');
+        // res.send(200, newUser.username);
+      });
+    }
+  });
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail

@@ -6,11 +6,15 @@ var User = db.Model.extend({
   tableName: 'users',
   hasTimestamps: false,
 
-  initialize: function(){
-    // this.on('creating', function(model, attrs, options){
-    //   var hash = bcrypt.hashSync(model.get('password'));
-    //   model.set('hashedPassword', hash);
-    // });
+  initialize: function() {
+    this.on('creating', function(model) {
+      var password = model.get('password');
+      if (password) {
+        // hash & rewrite password
+        // console.log("PASS", password);
+        model.set('password', bcrypt.hashSync(password));
+      }
+    });
   }
 });
 
